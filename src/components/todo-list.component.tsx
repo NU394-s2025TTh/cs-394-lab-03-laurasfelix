@@ -1,6 +1,6 @@
 // src/components/TodoList.tsx
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 
 import { Todo } from '../types/todo-type';
 
@@ -26,17 +26,29 @@ interface FetchTodosParams {
  * The function uses async/await syntax to handle asynchronous operations, making the code cleaner and easier to read.
  * fetch from the URL https://jsonplaceholder.typicode.com/todos
  */
-// remove eslint-disable-next-line @typescript-eslint/no-unused-vars when you use the parameters in the function
+
 export const fetchTodos = async ({
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   setTodos,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   setFilteredTodos,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   setLoading,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   setError,
-}: FetchTodosParams): Promise<void> => {};
+}: FetchTodosParams): Promise<void> => {
+  const url = 'https://jsonplaceholder.typicode.com/todos';
+  setLoading(true);
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+    const data: Todo[] = await response.json();
+    setTodos(data);
+    setFilteredTodos(data);
+  } catch (e) {
+    setError((e as Error).message);
+  } finally {
+    setLoading(false);
+  }
+};
 /**
  * TodoList component fetches todos from the API and displays them in a list.
  * It also provides filter buttons to filter the todos based on their completion status.
@@ -44,9 +56,35 @@ export const fetchTodos = async ({
  * @returns
  */
 
-// remove the following line when you use onSelectTodo in the component
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export const TodoList: React.FC<TodoListProps> = ({ onSelectTodo }) => {
+  const [todos, setTodos] = useState<Todo[]>([]);
+  const [filteredTodos, setFilteredTodos] = useState<Todo[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+  const [clicked, setClicked] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    fetchTodos({
+      setTodos,
+      setFilteredTodos,
+      setLoading,
+      setError,
+    });
+  }, []);
+
+  useEffect(() => {
+    if (clicked != null) {
+      setFilteredTodos(todos.filter((todo) => todo.completed === clicked));
+    }
+  }, [clicked]);
+
+  if (loading) {
+    return <div> Loading todos </div>;
+  }
+  if (error) {
+    return <div> error loading todos </div>;
+  }
+
   return (
     <div className="todo-list">
       <h2>Todo List</h2>
@@ -59,14 +97,28 @@ export const TodoList: React.FC<TodoListProps> = ({ onSelectTodo }) => {
         <code> .todo-button.completed</code> CSS style in App.css
       </p>
       <div className="filter-buttons">
-        <button data-testid="filter-all">All</button>
-        <button data-testid="filter-open">Open</button>
-        <button data-testid="filter-completed">Completed</button>
+        <button data-testid="filter-all" onClick={() => setClicked(null)}>
+          All
+        </button>
+        <button data-testid="filter-open" onClick={() => setClicked(false)}>
+          Open
+        </button>
+        <button data-testid="filter-completed" onClick={() => setClicked(true)}>
+          Completed
+        </button>
       </div>
       <p>
         Show a list of todo&apos;s here. Make it so if you click a todo it calls the event
         handler onSelectTodo with the todo id to show the individual todo
       </p>
+      {(clicked == null ? todos : filteredTodos).map((todo) => (
+        <button key={todo.id} onClick={() => onSelectTodo(todo.id)}>
+          <p>{todo.title}</p>
+          <p>{todo.id}</p>
+          <p>{todo.userId}</p>
+          <p>{todo.completed}</p>
+        </button>
+      ))}
     </div>
   );
 };
